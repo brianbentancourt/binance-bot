@@ -156,8 +156,15 @@ def run_bot():
                 if live_btc_balance < step_size:
                     print(f"📈 Operación cerrada (TP o SL alcanzado). Reseteando estado.")
                     
-                    # Para un PnL real, se debería consultar el historial de trades.
-                    log_trade(action="SELL", symbol=symbol, pnl="N/A")
+                    # Logueamos el cierre. Usamos el btc_balance guardado como la cantidad
+                    # y el precio actual como una referencia, ya que no conocemos el precio exacto de ejecución.
+                    log_trade(
+                        action="SELL", 
+                        symbol=symbol, 
+                        price=current_price,  # Usamos el precio actual como referencia
+                        quantity=btc_balance, # Usamos el balance que teníamos en la posición
+                        pnl="N/A (Cierre OCO)"
+                    )
                     
                     btc_balance = 0.0
                     entry_price = 0.0
