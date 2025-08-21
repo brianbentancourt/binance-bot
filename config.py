@@ -62,6 +62,9 @@ def load_config():
     usdt_amount = args.usdt if args.usdt is not None else float(os.getenv("USDT_AMOUNT", 0))
     risk = args.risk if args.risk is not None else float(os.getenv("RISK", 1.0))
 
+    take_profit = float(os.getenv("TAKE_PROFIT", 0.02))
+    stop_loss = float(os.getenv("STOP_LOSS", 0.01))
+
     return {
         "api_key":     api_key,
         "api_secret":  api_secret,
@@ -71,5 +74,7 @@ def load_config():
         "ma_fast":     args.fast,
         "ma_slow":     args.slow,
         "risk":        risk,
+        "take_profit": take_profit,
+        "stop_loss":   stop_loss,
         "testnet":     args.testnet
     }
