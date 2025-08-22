@@ -3,91 +3,115 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-def analizar_trades(archivo_csv='trades.csv'):
+BINANCE_YELLOW = "#F0B90B"
+DARK_BG = "#2B2B2B"
+DARK_TEXT = "#EAECEE"
+
+def analizar_trades_para_gui(archivo_csv='trades.csv', dark_mode=False):
     """
-    Lee el archivo de trades, calcula el PnL por operación y grafica el PnL acumulado.
+    Lee el archivo de trades, calcula el PnL y devuelve un gráfico y un resumen en texto.
+    Acepta un parámetro dark_mode para ajustar los colores del gráfico.
     """
+    output_summary = []
+    
     try:
         df = pd.read_csv(archivo_csv)
     except FileNotFoundError:
-        print(f"Error: No se encontró el archivo '{archivo_csv}'. Asegúrate de que está en la misma carpeta.")
-        return
+        return None, f"Error: No se encontró el archivo '{archivo_csv}'."
 
-    # Asegurarse de que la columna de timestamp sea del tipo datetime
+    if df.empty or len(df) < 2:
+        return None, "No hay suficientes datos en trades.csv para generar un análisis."
+
     df['timestamp'] = pd.to_datetime(df['timestamp'])
-
     trades_completados = []
     pnl_total = 0
 
-    # Iterar por el dataframe para emparejar compras con ventas
     for i in range(0, len(df) - 1, 2):
-        compra = df.iloc[i]
-        venta = df.iloc[i+1]
-
-        # Asegurarse de que estamos emparejando una COMPRA con una VENTA
-        if compra['action'] == 'BUY' and venta['action'] == 'SELL':
-            costo_total = compra['cost']
-            
-            # Para las ventas OCO, el 'revenue' no está en el CSV, así que lo calculamos
-            ingreso_total = venta['price'] * compra['quantity'] # Usamos la cantidad de la compra para mayor precisión
-            
-            pnl_operacion = ingreso_total - costo_total
-            pnl_total += pnl_operacion
-
-            trades_completados.append({
-                'fecha_cierre': venta['timestamp'],
-                'pnl_operacion': pnl_operacion,
-                'pnl_acumulado': pnl_total
-            })
+        if i + 1 < len(df):
+            compra = df.iloc[i]
+            venta = df.iloc[i+1]
+            if compra['action'] == 'BUY' and venta['action'] == 'SELL':
+                costo_total = compra['cost']
+                ingreso_total = venta['price'] * compra['quantity']
+                pnl_operacion = ingreso_total - costo_total
+                pnl_total += pnl_operacion
+                trades_completados.append({
+                    'fecha_cierre': venta['timestamp'],
+                    'pnl_operacion': pnl_operacion,
+                    'pnl_acumulado': pnl_total
+                })
 
     if not trades_completados:
-        print("No se encontraron operaciones completadas (pares de compra/venta) para analizar.")
-        return
+        return None, "No se encontraron operaciones completadas (pares de compra/venta)."
 
-    # Crear un nuevo DataFrame con los resultados
     df_resultados = pd.DataFrame(trades_completados)
 
-    print("--- Resumen de Operaciones ---")
-    print(df_resultados[['fecha_cierre', 'pnl_operacion', 'pnl_acumulado']].round(4))
-    print("\n---------------------------------")
-    print(f"Resultado Final (PnL Total): {df_resultados['pnl_acumulado'].iloc[-1]:.4f} USDT")
-    print("---------------------------------")
-
+    output_summary.append("--- Resumen de Operaciones ---")
+    output_summary.append(df_resultados[['fecha_cierre', 'pnl_operacion', 'pnl_acumulado']].round(4).to_string())
+    output_summary.append(f"\n\nResultado Final (PnL Total): {df_resultados['pnl_acumulado'].iloc[-1]:.4f} USDT")
 
     # --- Graficar los resultados ---
-    # CORRECCIÓN: Cambiado a un estilo más compatible como 'ggplot'
-    plt.style.use('ggplot')
-    fig, ax = plt.subplots(figsize=(12, 7))
+    if dark_mode:
+        plt.style.use('dark_background')
+        fig, ax = plt.subplots(figsize=(12, 7), facecolor=DARK_BG)
+        ax.set_facecolor("#1C1C1C")
+        main_color = BINANCE_YELLOW
+        text_color = DARK_TEXT
+        pnl_pos_color = '#2E7D32' # Verde oscuro
+        pnl_neg_color = '#C62828' # Rojo oscuro
+        grid_color = '#424242'
+    else:
+        plt.style.use('ggplot')
+        fig, ax = plt.subplots(figsize=(12, 7))
+        main_color = 'royalblue'
+        text_color = 'black'
+        pnl_pos_color = 'green'
+        pnl_neg_color = 'red'
+        grid_color = None # Estilo por defecto
 
-    # Graficar la línea de PnL acumulado
     ax.plot(df_resultados['fecha_cierre'], df_resultados['pnl_acumulado'], 
-            marker='o', linestyle='-', color='royalblue', label='PnL Acumulado')
+            marker='o', linestyle='-', color=main_color, label='PnL Acumulado')
 
-    # Rellenar el área bajo la curva para un mejor efecto visual
     ax.fill_between(df_resultados['fecha_cierre'], df_resultados['pnl_acumulado'], 0,
                     where=(df_resultados['pnl_acumulado'] >= 0), 
-                    facecolor='green', alpha=0.3, interpolate=True)
+                    facecolor=pnl_pos_color, alpha=0.5, interpolate=True)
     ax.fill_between(df_resultados['fecha_cierre'], df_resultados['pnl_acumulado'], 0,
                     where=(df_resultados['pnl_acumulado'] < 0), 
-                    facecolor='red', alpha=0.3, interpolate=True)
+                    facecolor=pnl_neg_color, alpha=0.5, interpolate=True)
     
-    # Línea horizontal en cero para referencia
-    ax.axhline(0, color='black', linewidth=0.8, linestyle='--')
-
+    ax.axhline(0, color=text_color, linewidth=0.8, linestyle='--', alpha=0.7)
+    
     # Formato y etiquetas
-    ax.set_title('Evolución del PnL del Bot de Trading', fontsize=16)
-    ax.set_ylabel('PnL Acumulado (USDT)', fontsize=12)
-    ax.set_xlabel('Fecha de Operación', fontsize=12)
+    ax.set_title('Evolución del PnL del Bot de Trading', fontsize=16, color=text_color)
+    ax.set_ylabel('PnL Acumulado (USDT)', fontsize=12, color=text_color)
+    ax.set_xlabel('Fecha de Operación', fontsize=12, color=text_color)
     
-    # Formatear el eje Y para que muestre el símbolo de dólar
+    ax.tick_params(axis='x', colors=text_color)
+    ax.tick_params(axis='y', colors=text_color)
+    ax.spines['bottom'].set_color(text_color)
+    ax.spines['top'].set_color(text_color) 
+    ax.spines['right'].set_color(text_color)
+    ax.spines['left'].set_color(text_color)
+    if grid_color: ax.grid(color=grid_color)
+
     formatter = mticker.FormatStrFormatter('$%1.2f')
     ax.yaxis.set_major_formatter(formatter)
     
-    plt.xticks(rotation=45)
-    plt.tight_layout() # Ajusta el layout para que no se corten las etiquetas
-    plt.legend()
-    plt.show()
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    legend = ax.legend()
+    plt.setp(legend.get_texts(), color=text_color)
 
+    return fig, "\n".join(output_summary)
+
+def analizar_trades(archivo_csv='trades.csv'):
+    """Función original que muestra el gráfico y el resumen en la consola."""
+    fig, summary = analizar_trades_para_gui(archivo_csv, dark_mode=False)
+    if fig:
+        print(summary)
+        plt.show()
+    else:
+        print(summary)
 
 if __name__ == "__main__":
     analizar_trades()

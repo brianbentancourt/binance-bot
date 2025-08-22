@@ -5,6 +5,7 @@
 # Archivos de estado y datos generados por el bot
 state.json
 trades.csv
+config.json
 
 # Carpetas de compilación de PyInstaller
 /dist/
