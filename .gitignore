@@ -1,16 +1,27 @@
-# Archivos de estado y logs generados por el bot
+# Archivos de entorno (¡MUY IMPORTANTE!)
+# Contiene claves de API y secretos. NUNCA subir a GitHub.
+.env
+
+# Archivos de estado y datos generados por el bot
 state.json
 trades.csv
 
-# Archivos de entorno (contiene claves de API)
-.env
+# Carpetas de compilación de PyInstaller
+/dist/
+/build/
+*.spec
 
-# Directorios de cache de Python
+# Directorios de cache y artefactos de Python
 __pycache__/
-*.pyc
+*.py[cod]
 
-# Otros directorios comunes de entornos virtuales de Python
+# Entornos virtuales de Python
 /venv/
 /env/
 /.venv/
 /.env/
+
+# Metadatos de editores e IDEs
+.vscode/
+.idea/
+.qodo/
